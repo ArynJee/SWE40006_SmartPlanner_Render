@@ -1,0 +1,41 @@
+services:
+  # setup frontend web service on Render
+  - type: web
+    name: smartplanner-frontend
+    # set runtime language to Docker so it builds the image using the defined Dockerfile
+    runtime: docker
+    dockerfilePath: ./smartplanner-src/Dockerfile
+    # do not deploy before CI checks and database migrations are successful
+    autoDeploy: false
+    envVars:
+      - key: VITE_API_URL
+        # Render auto generates the backend service URL as an env variable named RENDER_EXTERNAL_URL
+        # map VITE_API_URL to the backend service URL (RENDER_EXTERNAL_URL)
+        fromService:
+          type: web
+          name: smartplanner-backend
+          envVarKey: RENDER_EXTERNAL_URL
+        scope: build
+
+  # setup backend web service on Render
+  - type: web
+    name: smartplanner-backend
+    # set runtime language to Docker so it builds the image using the defined Dockerfile
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    # do not deploy before CI checks and database migrations are successful
+    autoDeploy: false
+    envVars:
+      # need to manually add DATABASE_URL, GROQ_API_KEY as separate env vars in backend service
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        # Render auto generates the frontend service URL as an env variable named RENDER_EXTERNAL_URL
+        # map CORS_ORIGINS to the frontend service URL (RENDER_EXTERNAL_URL)
+        fromService:
+          type: web
+          name: smartplanner-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+        scope: run

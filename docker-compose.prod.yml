@@ -1,0 +1,46 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartplanner-backend-prod
+    # avoid downtime by restarting the container if it crashes (unhandled exceptions/out of memory etc.)
+    # app stays dead without restart: always, and need manual SSH to the instance to restart the container
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    networks:
+      - smartplanner
+
+  frontend:
+    build:
+      context: ./smartplanner-src
+      dockerfile: Dockerfile
+      args:
+        # pass the env variable to the build stage
+        # this replaces the const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`) to const response = await fetch(`http://EC2-instance-ip/api/auth/login`) in the js output of the built image
+        # at runtime, nginx only serves the static frontend files, no env can be injected
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: smartplanner-frontend-prod
+    # avoid downtime by restarting the container if it crashes (unhandled exceptions/out of memory etc.)
+    # app stays dead without restart: always, and need SSH to the instance to restart the container
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - smartplanner
+
+networks:
+  smartplanner:
+    # allow containers on the same bridge network to reach each other
+    # but are isolated from containers on other networks
+    driver: bridge
